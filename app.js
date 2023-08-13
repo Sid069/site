@@ -3,17 +3,19 @@ const express = require("express");
 const app = express();
 const path = require("path");
 const bcrypt = require("bcryptjs");
+const auth = require("./src/middleware/auth");
+const cookieParser = require('cookie-parser');
 
-require("./db/conn.js");
+require("./src/db/conn.js");
 
-const Register = require("./models/registers.js");
+const Register = require("./src/models/registers.js");
 
 const port = process.env.PORT || 8080;
 
-const staticPath = path.join(__dirname, "../public");
-const viewPath = path.join(__dirname, '../views');
+const staticPath = path.join(__dirname, "public");
+const viewPath = path.join(__dirname, 'views');
 
-
+app.use(cookieParser());
 app.use(express.static(staticPath));
 app.set("view engine", "html");
 app.engine('html', require('ejs').renderFile);
@@ -30,18 +32,17 @@ app.get("/register",(req, res) => {
   res.render("signup.html");
 });
 
-
 app.get("/login", (req, res) => {
   res.render("loginpage.html");
 });
 
-app.get("/response",(req, res) => {
+app.get("/response", auth, (req, res) => {
   res.render("response.html");
 });
-app.get("/right",(req, res) => {
+app.get("/right", (req, res) => {
   res.render("right.html");
 });
-app.get("/wrong",(req, res) => {
+app.get("/wrong", (req, res) => {
   res.render("wrong.html");
 });
 
@@ -63,12 +64,15 @@ app.post("/register", async (req, res) => {
 
         const token = await registerUser.generateAuthToken();
         
+        res.cookie("jwt", token)
+
+
         const registered = registerUser.save();
 
         res.status(201).render("loginpage");
         
       } else {
-        res.send("passwrods are not matching");
+        res.status(401).send("passwrods are not matching");
       }
 
 
@@ -87,22 +91,44 @@ app.post("/login", async (req, res) => {
 
     const userEmail = await Register.findOne({email});
 
-    const passwordMatch = await bcrypt.compare(password, userEmail.password)
+    const passwordMatch = await bcrypt.compare(password, userEmail.password);
 
     const token = await userEmail.generateAuthToken();
-    console.log(token);
-    
+
+    res.cookie("login",token, {
+      httpOnly:true
+    });
 
     if (passwordMatch) {
        res.status(201).render("ques");
     } else {
-      res.send("invalid login details")
+      res.status(400).send("invalid login details");
     }
 
   } catch (error) {
-    res.status(400).send("invalid login details")
+    res.status(400).send(`"invalid login details"  ${error}`)
   }
 });
+
+app.get('/logout', auth, async(req, res) =>{
+ 
+  try {
+
+    req.user.tokens = req.user.tokens.filter((currToken)=>{
+      return currToken.token !== req.token;
+    })
+
+    res.clearCookie("login");
+    console.log("logout Successfully")
+
+    await req.user.save();
+    res.render("loginpage");
+
+  } catch (error) {
+    res.status(500).send(error);
+  }
+
+})
 
   
 

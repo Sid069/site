@@ -1,7 +1,9 @@
 const mongoose = require('mongoose');
 const dbname = process.env.DBNAME;
+const id = process.env.ID;
+const password = process.env.PASSWORD;
 
-const uri = "mongodb+srv://admin:admin1234@cluster0.m6djqsb.mongodb.net/dbname?retryWrites=true&w=majority";
+const uri = `mongodb+srv://${id}:${password}@cluster0.m6djqsb.mongodb.net/${dbname}?retryWrites=true&w=majority`;
 
 const connectionParams={
     useNewUrlParser: true,
